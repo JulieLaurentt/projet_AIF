@@ -96,7 +96,7 @@ if __name__=='__main__':
 
     # setting net on device(GPU if available, else CPU)
     net = net.to(device)
-    optimizer = optim.SGD(net.parameters(), lr=lr)
+    optimizer = optim.Adam(net.parameters(),weight_decay=1e-4, lr=lr)
 
     train(net, optimizer,trainloader, writer, epochs)
     test_acc = test(net,testloader)
