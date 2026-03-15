@@ -1,11 +1,12 @@
 import gradio as gr
 import requests
 import io
+import os # N'oublie pas d'importer os
 from PIL import Image
 
 def predict_movie_genre(image):
-    # 1. Configuration (basée sur le test de ta collègue)
-    API_URL = "http://127.0.0.1:5075/predict"
+    # Utilise la variable d'environnement ou 'api' par défaut (qui sera le nom du service Docker)
+    api_base_url = os.getenv("API_URL", "http://api:5075/predict")
     
     # 2. Conversion de l'image Gradio (PIL) en bytes pour l'API
     img_byte_arr = io.BytesIO()
@@ -13,8 +14,8 @@ def predict_movie_genre(image):
     img_data = img_byte_arr.getvalue()
 
     try:
-        # 3. Envoi de la requête (format data brut comme dans son test)
-        response = requests.post(API_URL, data=img_data)
+        # 3. Envoi de la requête
+        response = requests.post(api_base_url, data=img_data)
         
         if response.status_code == 200:
             prediction = response.json().get('label', 'Genre inconnu')
@@ -23,7 +24,7 @@ def predict_movie_genre(image):
             return f"⚠️ Erreur API : Code {response.status_code}"
             
     except Exception as e:
-        return f"Impossible de contacter l'API. Est-elle lancée sur le port 5075 ? ({e})"
+        return f"Impossible de contacter l'API. ({e})"
 
 # 4. Création de l'interface visuelle
 demo = gr.Interface(
@@ -35,5 +36,4 @@ demo = gr.Interface(
 )
 
 if __name__ == "__main__":
-#CRUCIAL pour Docker : server_name="0.0.0.0" permet l'accès extérieur
     demo.launch(server_name="0.0.0.0", server_port=7860)
