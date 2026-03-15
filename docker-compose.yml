@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # Le service de ton API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "5075:5075"
+    # Si ton API a besoin de charger les poids du modèle depuis le dossier 'weights'
+    volumes:
+      - ./weights:/app/weights 
+
+  # Le service de ton interface Gradio
+  gradio:
+    build:
+      context: .
+      dockerfile: Dockerfile.gradio
+    ports:
+      - "7860:7860"
+    environment:
+      # C'est ici qu'on dit à Gradio d'appeler le service "api" défini juste au-dessus
+      - API_URL=http://api:5075/predict
+    depends_on:
+      - api # S'assure que l'API démarre avant Gradio
