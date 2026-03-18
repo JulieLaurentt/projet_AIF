@@ -10,7 +10,9 @@ services:
       - "5075:5075"
     # Si ton API a besoin de charger les poids du modèle depuis le dossier 'weights'
     volumes:
-      - ./weights:/app/weights 
+      - ../weights:/app/weights
+      - ../rec_imdb.ann:/app/rec_imdb.ann
+      - ../movies_metadata.csv:/app/movies_metadata.csv
 
   # Le service de ton interface Gradio
   gradio:

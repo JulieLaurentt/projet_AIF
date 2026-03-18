@@ -107,7 +107,7 @@ if __name__=='__main__':
     if not os.path.exists('weights'):
         os.makedirs('weights')
     
-    torch.save(net.state_dict(), 'weights/movieposter_net.pth')
+    torch.save(net.state_dict(), '../weights/movieposter_net.pth')
 
     # 2. Récupération d'un échantillon de données pour TensorBoard
     # On utilise le loader pour obtenir des tenseurs déjà transformés

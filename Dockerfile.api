@@ -17,7 +17,6 @@ RUN pip install --no-cache-dir -r requirements-api.txt
 # 5. Copier le code de l'API, le modèle et les poids
 COPY movieposter_api.py .
 COPY model.py .
-COPY weights/ ./weights/
 
 # 6. Exposer le port Flask
 EXPOSE 5075
