@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y \
 # 4. Copier et installer les bibliothèques Python
 COPY requirements-api.txt .
 RUN pip install --no-cache-dir -r requirements-api.txt
-# On force l'installation de Gradio et Requests au cas où
-RUN pip install --no-cache-dir gradio requests 
+# On force l'installation de Gradio, Requests ET la correction du bug Hugging Face
+RUN pip install --no-cache-dir gradio requests "huggingface_hub<0.29.0"
 
 # 5. Copier tout ton code (le modèle .pth doit être dans un dossier 'weights/')
 COPY . .

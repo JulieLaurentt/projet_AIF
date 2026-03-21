@@ -1,144 +1,99 @@
-import argparse
-from statistics import mean
-
+warnings.filterwarnings('ignore')
+import os
+os.environ['MKL_THREADING_LAYER'] = 'GNU'
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 import torch
-import torchvision
-import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from tqdm import tqdm
-from torch.utils.tensorboard import SummaryWriter
-from torchvision import datasets
+import torchvision
+from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
-
+from tqdm import tqdm
+import argparse
 from model import MovieposterNet
+import warnings
 
- # setting device on GPU if available, else CPU
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def train(net, optimizer, loader, writer,epochs=10):
+ 
+device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+print(f"[INFO] Utilisation du device : {device}")
+
+# Fonction pour tester le modèle
+def test(net, loader):
+    correct = 0
+    total = 0
+    net.eval()
+    with torch.no_grad():
+        for x, y in loader:
+            x, y = x.to(device), y.to(device)
+            y_hat = net(x).argmax(1)
+            correct += (y_hat == y).sum().item()
+            total += y.size(0)
+    net.train()
+    return correct / total
+
+# Fonction pour entraîner le modèle
+def train(net, optimizer, trainloader, testloader, epochs=10):
     criterion = nn.CrossEntropyLoss()
+
     for epoch in range(epochs):
+        net.train()
         running_loss = []
-        t = tqdm(loader)
+        t = tqdm(trainloader)
         for x, y in t:
             x, y = x.to(device), y.to(device)
+            optimizer.zero_grad()
             outputs = net(x)
             loss = criterion(outputs, y)
-            running_loss.append(loss.item())
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            t.set_description(f'training loss: {mean(running_loss)}')
-        writer.add_scalar('training loss', mean(running_loss), epoch)
+            running_loss.append(loss.item())
+            t.set_description(f'Epoch {epoch+1}, training loss: {sum(running_loss)/len(running_loss):.4f}')
 
+        epoch_loss = sum(running_loss) / len(running_loss)
 
-def test(model, dataloader):
-    test_corrects = 0
-    total = 0
-    with torch.no_grad():
-        for x, y in dataloader:
-            x = x.to(device)
-            y = y.to(device)
-            y_hat = model(x).argmax(1)
-            test_corrects += y_hat.eq(y).sum().item()
-            total += y.size(0)
-    return test_corrects / total
-	
+        # Test à la fin de chaque époque
+        acc = test(net, testloader)
+
+        print(f"Epoch {epoch+1} | loss: {epoch_loss:.4f} | test acc: {acc:.2%}")
+
 if __name__=='__main__':
-
     parser = argparse.ArgumentParser()
-
-    parser.add_argument('--exp_name', type=str, default = 'Movieposter', help='experiment name')
-    parser.add_argument('--epochs', type=int, default = int(10), help='nb of epochs')
-    parser.add_argument('--batch_size', type=int, default = int(64), help='batch size')
-    parser.add_argument('--lr', type=float, default =  float(1e-3), help='learning rate')
-
-
+    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--lr', type=float, default=1e-4)
     args = parser.parse_args()
-    print(args.exp_name)
-    exp_name = args.exp_name
-    epochs = args.epochs
-    batch_size = args.batch_size
-    lr = args.lr
 
-    writer = SummaryWriter(f'runs/Movieposter')
-
-    # 1. Définition des transformations
-    # Les posters sont en couleur (3 canaux) et de tailles variées, contrairement à MNIST.
+    # Transforms pour les posters
     transform = transforms.Compose([
-        transforms.Resize((224, 224)), # Redimensionnement standard pour les modèles de vision
+        transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) # Normalisation sur 3 canaux (RGB)
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
     ])
 
-    # 2. Chargement du dataset complet
-    # Le chemin '../' permet de remonter d'un niveau par rapport au dossier 'projet_AIF'
-    data_dir = '../sorted_movie_posters_paligema'
-    full_dataset = datasets.ImageFolder(root=data_dir, transform=transform)
+    dataset = torchvision.datasets.ImageFolder(
+        '../sorted_movie_posters_paligema',
+        transform=transform
+    )
 
-    # 3. Division en train/test (ex: 80% train, 20% test)
-    train_size = int(0.8 * len(full_dataset))
-    test_size = len(full_dataset) - train_size
-    trainset, testset = random_split(full_dataset, [train_size, test_size])
+    # Split train/test (80/20)
+    train_size = int(0.8 * len(dataset))
+    test_size = len(dataset) - train_size
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
-    # 4. Création des DataLoaders
-    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    trainloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
+    testloader  = DataLoader(test_dataset,  batch_size=args.batch_size, shuffle=False, num_workers=2)
 
-    # Accès aux classes (genres)
-    classes = full_dataset.classes
-    print(f"Classes détectées : {classes}")
-
-
-    net =MovieposterNet().to(device)
-
-    # setting net on device(GPU if available, else CPU)
+    # Instanciation du modèle
+    net = MovieposterNet()
     net = net.to(device)
-    optimizer = optim.Adam(net.parameters(),weight_decay=1e-4, lr=lr)
 
-    train(net, optimizer,trainloader, writer, epochs)
-    test_acc = test(net,testloader)
-    print(f'Test accuracy: {test_acc}')   
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=args.lr)
 
-    # 1. Gestion du dossier de sauvegarde des poids
-    import os
-    if not os.path.exists('weights'):
-        os.makedirs('weights')
-    
-    torch.save(net.state_dict(), '../weights/movieposter_net.pth')
+    # Training
+    train(net, optimizer, trainloader, testloader, epochs=args.epochs)
 
-    # 2. Récupération d'un échantillon de données pour TensorBoard
-    # On utilise le loader pour obtenir des tenseurs déjà transformés
-    dataiter = iter(trainloader)
-    images, labels = next(dataiter) 
-    
-    # On limite à 64 images pour la visualisation et on envoie sur le device
-    images = images[:64].to(device)
-    labels = labels[:64].to(device)
-
-    # 3. Enregistrement du graphe du modèle
-    # Vérifiez que les dimensions d'entrée du modèle correspondent (ex: 3, 224, 224)
-    writer.add_graph(net, images)
-
-    # 4. Enregistrement d'une grille d'images
-    img_grid = torchvision.utils.make_grid(images)
-    writer.add_image('movieposter_samples', img_grid)
-
-    # 5. Projecteur d'embeddings
-    # get_features() doit être définie dans MovieposterNet pour retourner l'avant-dernière couche
-    with torch.no_grad():
-        try:
-            embeddings = net.get_features(images)
-            # Conversion des indices en noms de classes pour la lisibilité
-            metadata = [classes[l] for l in labels]
-            writer.add_embedding(embeddings,
-                                metadata=metadata,
-                                label_img=images, 
-                                global_step=epochs)
-        except AttributeError:
-            print("Erreur : La méthode get_features n'est pas définie dans MovieposterNet.")
-
-    # 6. Fermeture du SummaryWriter
-    writer.close()
+    # Sauvegarde des poids
+    torch.save(net.state_dict(), '../weights/movieposter_net.pth', _use_new_zipfile_serialization=False)
