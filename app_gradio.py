@@ -3,6 +3,17 @@ import requests
 import io
 import os # N'oublie pas d'importer os
 from PIL import Image
+import time
+import requests
+
+def call_api(image):
+    for i in range(10):  # 10 tentatives
+        try:
+            response = requests.post(...)
+            return response.json()
+        except requests.exceptions.ConnectionError:
+            time.sleep(3)  # attend 3 secondes entre chaque essai
+    return {"error": "API non disponible"}
 
 def predict_movie_genre(image):
     # Utilise la variable d'environnement ou 'api' par défaut (qui sera le nom du service Docker)
