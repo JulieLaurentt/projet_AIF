@@ -2,16 +2,16 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    libgl1 \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY requirements-api.txt .
 RUN pip install --no-cache-dir -r requirements-api.txt
 
 COPY movieposter_api.py .
 COPY model.py .
+
+# Installe gdown et télécharge les poids depuis Google Drive
+RUN pip install --no-cache-dir gdown && \
+    mkdir -p weights && \
+    gdown "https://drive.google.com/uc?id=1gUjjA6Kw2DtxDWup7WHCA0_D8lST2gvQ" -O weights/movieposter_net.pth
 
 # Pré-télécharge les poids ResNet50 au moment du build
 RUN python -c "from torchvision.models import resnet50, ResNet50_Weights; resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)"
