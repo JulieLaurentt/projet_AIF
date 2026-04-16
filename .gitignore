@@ -1,3 +1,14 @@
+# Données
+data/*.csv
+data/*.npy
+
+# Python
 __pycache__/
-.ipynb_checkpoints/
 *.pyc
+
+# Environnement
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
