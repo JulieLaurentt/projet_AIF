@@ -1,5 +1,3 @@
-# fichier pour faire embeddings par bow 
-
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -28,6 +26,12 @@ class BoWEmbedder:
     def save(self, path: str = "saved_models/bow"):
         os.makedirs(path, exist_ok=True)
         np.save(f"{path}/embeddings.npy", self.embeddings)
+        # Sauvegarde de l'état du vectoriseur (vocabulaire et poids)
+        with open(f"{path}/vectorizer.pkl", 'wb') as f:
+            pickle.dump(self.vectorizer, f)
 
     def load(self, path: str = "saved_models/bow"):
         self.embeddings = np.load(f"{path}/embeddings.npy")
+        # Chargement de l'état du vectoriseur
+        with open(f"{path}/vectorizer.pkl", 'rb') as f:
+            self.vectorizer = pickle.load(f)
