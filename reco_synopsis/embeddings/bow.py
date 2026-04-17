@@ -4,38 +4,30 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 import pickle, os
+from clean_embedd import TextPreprocessor
 
 class BoWEmbedder:
-    """
-    TF-IDF Bag of Words embedder.
-
-    """
     def __init__(self, max_features=10000):
         self.vectorizer = TfidfVectorizer(
             max_features=max_features,
             stop_words='english',
-            ngram_range=(1, 2)   # unigrammes + bigrammes
+            ngram_range=(1, 2)
         )
+        self.preprocessor = TextPreprocessor(use_lemmatization=True)
         self.embeddings = None
-        self.plots = None
 
     def fit_transform(self, plots: list[str]) -> np.ndarray:
-        """Entraîne le vectorizer sur tous les synopsis et retourne les embeddings."""
-        self.plots = plots
-        self.embeddings = self.vectorizer.fit_transform(plots).toarray()
+        cleaned = self.preprocessor.preprocess_batch(plots)  
+        self.embeddings = self.vectorizer.fit_transform(cleaned).toarray()
         return self.embeddings
 
     def transform(self, texts: list[str]) -> np.ndarray:
-        """Transforme de nouveaux textes (ex: requête utilisateur)."""
-        return self.vectorizer.transform(texts).toarray()
-
+        cleaned = self.preprocessor.preprocess_batch(texts)   
+        return self.vectorizer.transform(cleaned).toarray()
+    
     def save(self, path: str = "saved_models/bow"):
         os.makedirs(path, exist_ok=True)
-        with open(f"{path}/vectorizer.pkl", "wb") as f:
-            pickle.dump(self.vectorizer, f)
         np.save(f"{path}/embeddings.npy", self.embeddings)
 
     def load(self, path: str = "saved_models/bow"):
-        with open(f"{path}/vectorizer.pkl", "rb") as f:
-            self.vectorizer = pickle.load(f)
         self.embeddings = np.load(f"{path}/embeddings.npy")
