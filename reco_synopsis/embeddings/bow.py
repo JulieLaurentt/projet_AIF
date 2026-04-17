@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 import pickle, os
-from clean_embedd import TextPreprocessor
+from embeddings.clean_embedd import TextPreprocessor
 
 class BoWEmbedder:
     def __init__(self, max_features=10000):
