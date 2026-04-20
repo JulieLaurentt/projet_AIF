@@ -2,6 +2,10 @@
 data/*.csv
 data/*.npy
 
+*.npy
+*.plk
+
+
 # Python
 __pycache__/
 *.pyc

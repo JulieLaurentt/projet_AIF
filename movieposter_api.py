@@ -13,8 +13,6 @@ app = Flask(__name__)
 # Liste des classes pour le mapping
 CLASSES = ['action', 'animation', 'comedy', 'documentary', 'drama', 'fantasy', 'horror', 'romance', 'science Fiction', 'thriller']
 
-
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_path', type=str, default = 'weights/movieposter_net.pth', help='model path')
 args = parser.parse_args()
