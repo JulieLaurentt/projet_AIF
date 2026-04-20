@@ -1,0 +1,21 @@
+FROM python:3.10-slim
+WORKDIR /app
+
+# Il faut ABSOLUMENT ces deux-là pour Annoy
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-annoy.txt .
+RUN pip install --no-cache-dir -r requirements-annoy.txt
+
+# Installe gdown et télécharge les poids depuis Google Drive
+RUN pip install --no-cache-dir gdown && \
+    mkdir -p weights && \
+    gdown "https://drive.google.com/uc?id=1UPid6YlUVJGkelG4R67-gnFHje5VIe_6" -O weights/movies_metadata.csv && \
+    gdown "https://drive.google.com/uc?id=13CfQfWxikGs3rlBHimbSUtyf7XZMmrYp" -O weights/rec_imdb.ann
+COPY annoy_db.py .
+
+EXPOSE 5000
+CMD ["python", "annoy_db.py"]

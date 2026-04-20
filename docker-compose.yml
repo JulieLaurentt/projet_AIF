@@ -1,17 +1,20 @@
 version: '3.8'
 services:
+  annoy:
+    build:
+      context: .
+      dockerfile: Dockerfile.annoy 
+    ports:
+      - "5000:5000"
+
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     ports:
       - "5075:5075"
-    volumes:
-      - ../weights:/app/weights
-      - ../rec_imdb.ann:/app/rec_imdb.ann
-      - ../movies_metadata.csv:/app/movies_metadata.csv
     command: ["python", "movieposter_api.py", "--model_path", "weights/movieposter_net.pth"]
-
+    
   gradio:
     build:
       context: .
@@ -20,5 +23,7 @@ services:
       - "7860:7860"
     environment:
       - API_URL=http://api:5075/predict
+      - ANNOY_URL=http://annoy:5000/recommend
     depends_on:
       - api
+      - annoy
