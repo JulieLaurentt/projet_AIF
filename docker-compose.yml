@@ -14,7 +14,16 @@ services:
     ports:
       - "5075:5075"
     command: ["python", "movieposter_api.py", "--model_path", "weights/movieposter_net.pth"]
-    
+  api_reco:
+    build:
+      context: .
+      dockerfile: Dockerfile.api        # même image, commande différente
+    ports:
+      - "5076:5076"
+    command: ["python", "movie_plot_api.py"]
+    depends_on:
+      - api                             # api_reco démarre après api (même build)
+
   gradio:
     build:
       context: .
@@ -22,8 +31,10 @@ services:
     ports:
       - "7860:7860"
     environment:
-      - API_URL=http://api:5075/predict
-      - ANNOY_URL=http://annoy:5000/recommend
+      -  API_CLASSIFICATION_URL=http://api:5075/predict    #  onglet 1
+      - API_RECOMMENDATION_URL=http://api_reco:5076/recommend  # onglet 2
+      - ANNOY_URL=http://annoy:5000/recommend             # onglet 1
     depends_on:
       - api
+      - api_reco
       - annoy

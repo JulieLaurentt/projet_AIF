@@ -3,7 +3,8 @@ data/*.csv
 data/*.npy
 
 *.npy
-*.plk
+*.pkl
+
 
 
 # Python
