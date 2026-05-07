@@ -6,6 +6,7 @@ data/
 saved_models/
 weights/
 sorted_movie_posters_paligema/
+test_posters
 posters/
 posters.zip
 
