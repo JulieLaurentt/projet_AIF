@@ -8,6 +8,11 @@ from embeddings.bow import BoWEmbedder
 from embeddings.word2vec import Word2VecEmbedder
 from embeddings.bert import BERTEmbedder
 
+from flask import send_file
+import os
+
+
+
 
 app = Flask(__name__)
 
@@ -60,20 +65,33 @@ def recommend():
         return jsonify({"error": f"method must be one of {list(RECOMMENDERS.keys())}"}), 400
 
     results = RECOMMENDERS[method].recommend(query, top_k=top_k)
-
     return jsonify({
-        "method": method,
-        "query": query,
-        "results": [
-            {
-                "movie_poster_path": row["movie_poster_path"],
-                "movie_category":   row["movie_category"],
-                "movie_plot":       row["movie_plot"],
-                "similarity_score": round(float(row["similarity_score"]), 4)
-            }
-            for _, row in results.iterrows()
-        ]
-    })
+    "method": method,
+    "query": query,
+    "top_k": top_k,
+    "results": [
+        {
+            "movie_poster_path": row["movie_poster_path"],  
+            "movie_category":    row["movie_category"],
+            "movie_plot":        row["movie_plot"],
+            "similarity_score":  round(float(row["similarity_score"]), 4)
+        }
+        for _, row in results.iterrows()
+    ]
+})
+    
+
+
+@app.route('/poster/<path:poster_path>')
+def get_poster(poster_path):
+    full_path = os.path.join("sorted_movie_posters_paligema", poster_path)
+    if os.path.exists(full_path):
+        return send_file(full_path, mimetype='image/jpeg')
+    return "Image non trouvée", 404
+
+
+
+
 
 
 if __name__ == "__main__":

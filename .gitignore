@@ -2,10 +2,16 @@
 data/*.csv
 data/*.npy
 
+data/
+saved_models/
+weights/
+sorted_movie_posters_paligema/
+posters/
+posters.zip
+
+
 *.npy
 *.pkl
-
-
 
 # Python
 __pycache__/

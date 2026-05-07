@@ -67,11 +67,11 @@ def predict_movie_genre(image):
     response = call_api_with_retry(API_CLASSIFICATION_URL, data=img_data)
 
     if response is None:
-        return "❌ API de classification non disponible."
+        return " API de classification non disponible."
     if response.status_code == 200:
         prediction = response.json().get('label', 'Genre inconnu')
         return f"🎬 Genre prédit : {prediction}"
-    return f"⚠️ Erreur API : Code {response.status_code}"
+    return f" Erreur API : Code {response.status_code}"
 
 # =========================================================
 # ONGLET 2 — Recommandation par image/Annoy 
@@ -86,16 +86,16 @@ def get_recommendations(image):
     response = call_api_with_retry(ANNOY_URL, json={"vector": vector})
 
     if response is None:
-        return "❌ API Annoy non disponible."
+        return " API Annoy non disponible."
     films = response.json().get('recommendations', [])
     return "\n".join([f"🎥 {film}" for film in films])
 
 # =========================================================
-# ONGLET 3 — Recommandation par synopsis (
+# ONGLET 3 — Recommandation par synopsis (ne pas toucher, ca fonctionne)
 # =========================================================
 def recommend_movies(query, method, top_k):
     if not query.strip():
-        return "⚠️ Veuillez entrer une description de film."
+        return "Veuillez entrer une description de film en anglais"
 
     response = call_api_with_retry(
         API_RECOMMENDATION_URL,
@@ -103,39 +103,74 @@ def recommend_movies(query, method, top_k):
     )
 
     if response is None:
-        return "❌ API de recommandation non disponible."
+        return " API de recommandation non disponible."
     if response.status_code != 200:
-        return f"⚠️ Erreur API : Code {response.status_code}"
+        return f" Erreur API : Code {response.status_code}"
 
     results = response.json().get("results", [])
     if not results:
         return "Aucun résultat trouvé."
 
     html_output = "<div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;'>"
-    for r in results:
+
+    for i, r in enumerate(results):
         poster_path = r.get("movie_poster_path", "")
-        img_src = f"file/{poster_path}" if poster_path else ""
+        img_src = f"http://localhost:5076/poster/{poster_path}" if poster_path else "https://via.placeholder.com/200x300?text=Pas+d%27affiche"
         category = r.get("movie_category", "")
         score = r.get("similarity_score", 0)
         plot = r.get("movie_plot", "")
+        plot_short = plot[:120] + "..." if len(plot) > 120 else plot
 
         html_output += f"""
         <div style='border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
-            <img src='{img_src}' style='width: 100%; height: auto; border-radius: 4px;' onerror="this.src='https://via.placeholder.com/200x300?text=Pas+d%27affiche'">
+            <img src='{img_src}' style='width: 100%; height: 280px; object-fit: cover; border-radius: 4px;'
+                onerror="this.src='https://via.placeholder.com/200x300?text=Pas+d%27affiche'">
             <div style='margin-top: 10px;'>
                 <div style='font-weight: bold; color: #333;'>{category}</div>
                 <div style='color: #007bff; font-size: 0.9em; margin: 5px 0;'>Score : {score:.4f}</div>
-                <p style='font-size: 0.8em; color: #666; line-height: 1.3;'>{plot[:150]}...</p>
+                
+                <!-- Synopsis court -->
+                <p id='short_{i}' style='font-size: 0.8em; color: #666; line-height: 1.3; margin: 0;'>
+                    {plot_short}
+                </p>
+                
+                <!-- Synopsis complet (caché par défaut) -->
+                <p id='full_{i}' style='font-size: 0.8em; color: #666; line-height: 1.3; margin: 0; display: none;'>
+                    {plot}
+                </p>
+                
+                <!-- Bouton + / - -->
+                <button id='btn_{i}' 
+                    onclick="
+                        var s = document.getElementById('short_{i}');
+                        var f = document.getElementById('full_{i}');
+                        var b = document.getElementById('btn_{i}');
+                        if (f.style.display === 'none') {{
+                            s.style.display = 'none';
+                            f.style.display = 'block';
+                            b.textContent = '−';
+                        }} else {{
+                            s.style.display = 'block';
+                            f.style.display = 'none';
+                            b.textContent = '+';
+                        }}
+                    "
+                    style='margin-top: 6px; background: none; border: 1px solid #007bff; color: #007bff; 
+                        border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 14px;
+                        display: flex; align-items: center; justify-content: center; padding: 0;'>
+                    +
+                </button>
             </div>
         </div>"""
+
     html_output += "</div>"
     return html_output
 
 # =========================================================
-# INTERFACE GRADIO — 3 onglets
+# INTERFACE GRADIO — 3 onglets ( a modifier pour rajouter le 4eme onglet de la derniere partie)
 # =========================================================
-with gr.Blocks(title="Analyseur de Films") as demo:
-    gr.Markdown("# 🎬 Analyseur de Films")
+with gr.Blocks(title="AI Movie Analysis") as demo:
+    gr.Markdown("#  Analyseur de Films")
 
     with gr.Tabs():
 
@@ -163,12 +198,12 @@ with gr.Blocks(title="Analyseur de Films") as demo:
 
         # --- Onglet 3 ---
         with gr.Tab("Recommandation par synopsis"):
-            gr.Markdown("### Trouver des films similaires à partir d'une description")
+            gr.Markdown("### Trouver des films similaires à partir d'une description en anglais")
             with gr.Column():
                 query_input = gr.Textbox(
                     lines=4,
                     placeholder="Ex: A hero fights to save the world...",
-                    label="Description / Synopsis"
+                    label="Description / Synopsis en anglais"
                 )
                 with gr.Row():
                     method_input = gr.Radio(

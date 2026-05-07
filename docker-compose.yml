@@ -27,6 +27,7 @@ services:
     volumes:
       - huggingface_cache:/root/.cache/huggingface  
       - torch_cache:/root/.cache/torch
+      - gensim_cache:/root/gensim-data
     depends_on:
       - api                             # api_reco démarre après api (même build)
   
@@ -49,5 +50,6 @@ services:
 volumes:
   huggingface_cache:  
   torch_cache:
+  gensim_cache:
 
 

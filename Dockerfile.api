@@ -24,7 +24,13 @@ RUN pip install --no-cache-dir gdown && \
     gdown "https://drive.google.com/uc?id=1M-QCYhKxjbbdQooeErWRwKVPzRDTu3Ki"  -O saved_models/embeddings_w2v.npy && \
     gdown "https://drive.google.com/uc?id=1O_nScyz0gG0zfSrAsI1D3uq9IzGqaTWV"    -O saved_models/embeddings_bert.npy && \
     gdown "https://drive.google.com/uc?id=14MWMnkKYnqEHnx2n91BUrd5IdUiuVf5R"    -O saved_models/vectorizer.pkl && \
-    gdown "https://drive.google.com/uc?id=1M-QCYhKxjbbdQooeErWRwKVPzRDTu3Ki"     -O saved_models/word2vec.model
+    gdown "https://drive.google.com/uc?id=1M-QCYhKxjbbdQooeErWRwKVPzRDTu3Ki"     -O saved_models/word2vec.model 
+
+RUN apt-get update && apt-get install -y unzip && rm -rf /var/lib/apt/lists/*
+
+RUN gdown "https://drive.google.com/uc?id=18_HQ194DUl34-uQHgxWtVr6z724ivACj" -O posters.zip && \
+    unzip posters.zip && \
+    rm posters.zip
 
 
 # Pré-télécharge les modèles au moment du build
