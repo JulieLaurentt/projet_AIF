@@ -10,6 +10,13 @@ EMBEDDING_FILES = {
     "bert":     "embeddings_bert.npy",
 }
 
+
+EXTRA_FILES = {
+    "bow":      "vectorizer.pkl",
+    "word2vec": None,
+    "bert":     None,
+}
+
 class MovieRecommender:
     """
     Moteur de recommandation basé sur la similarité cosinus entre embeddings.
@@ -23,7 +30,7 @@ class MovieRecommender:
         self.embeddings = None
         self.model_name = model_name
 
-    def load_index(self, base_path: str = "saved_models"):
+    def load (self, base_path: str = "saved_models"):
         """Charge les embeddings pré-calculés depuis le fichier correspondant."""
         filename = EMBEDDING_FILES[self.model_name]
         file_path = os.path.join(base_path, filename)
@@ -38,6 +45,17 @@ class MovieRecommender:
         # Synchronise aussi l'embedder (nécessaire pour transform() sur la query)
         self.embedder.embeddings = self.embeddings
         print(f"[{self.model_name}] Embeddings chargés : {self.embeddings.shape}")
+       
+        # 2. Charge le fichier supplémentaire si nécessaire (vectorizer pour BoW, modèle pour Word2Vec)
+        extra = EXTRA_FILES[self.model_name]
+        if extra is not None:
+            extra_path = os.path.join(base_path, extra)
+            if not os.path.exists(extra_path):
+                raise FileNotFoundError(f"Fichier supplémentaire introuvable : {extra_path}")
+            self.embedder.load_extra(extra_path)
+            print(f"[{self.model_name}] Fichier supplémentaire chargé : {extra_path}")
+
+
 
     def recommend(self, query: str, top_k: int = 5) -> pd.DataFrame:
         if self.embeddings is None:

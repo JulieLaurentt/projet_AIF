@@ -22,13 +22,13 @@ bert = BERTEmbedder()
 
 # --- Chargement des embeddings pré-calculés (pas de recalcul au démarrage) ---
 rec_bow  = MovieRecommender(bow,  df, model_name="bow")
-rec_bow.load_index("saved_models")
+rec_bow.load ("saved_models")
 
 rec_w2v  = MovieRecommender(w2v,  df, model_name="word2vec")
-rec_w2v.load_index("saved_models")
+rec_w2v.load ("saved_models")
 
 rec_bert = MovieRecommender(bert, df, model_name="bert")
-rec_bert.load_index("saved_models")
+rec_bert.load ("saved_models")
 
 # Map méthode -> recommender, comme CLASSES dans ton API existante
 RECOMMENDERS = {

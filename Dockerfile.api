@@ -9,29 +9,26 @@ COPY movieposter_api.py .
 COPY model.py .
 
 #pour la partie reco_synopsis
-COPY recommendation_api.py .
-COPY reco_plots.py .
-COPY embeddings/ ./embeddings/
+COPY reco_synopsis/movie_plot_api.py .
+COPY reco_synopsis/reco_plots.py .
+COPY reco_synopsis/embeddings/ ./embeddings/
 
+EXPOSE 5075
 
 # Installe gdown et télécharge les poids depuis Google Drive
 RUN pip install --no-cache-dir gdown && \
-    mkdir -p weights && \
-    gdown "https://drive.google.com/uc?id=1gUjjA6Kw2DtxDWup7WHCA0_D8lST2gvQ" -O weights/movieposter_net.pth \
-    #telechargement des embeddings pour la partie synopsis
-    gdown "https://drive.google.com/uc?id=1JiMEjvw5KZS03od9waLrNtLvig_qJdj4"                -O data/movie_plots.csv && \
-    gdown "https://drive.google.com/uc?id=1qSL6Zk2ZlGK3wCiibM4IhpFAK4X-4_FU"                -O saved_models/embeddings_bow.npy && \
-    gdown "https://drive.google.com/uc?id=1M-QCYhKxjbbdQooeErWRwKVPzRDTu3Ki"                -O saved_models/embeddings_w2v.npy && \
-    gdown "https://drive.google.com/uc?id=1O_nScyz0gG0zfSrAsI1D3uq9IzGqaTWV"               -O saved_models/embeddings_bert.npy && \
-    gdown "https://drive.google.com/uc?id=16FYZWHDYJYOdgx5mbw6WO8bkneCsX0PS"               -O saved_models/vectorizer.pkl && \
-    gdown "https://drive.google.com/uc?id=1M-QCYhKxjbbdQooeErWRwKVPzRDTu3Ki"              -O saved_models/word2vec.model
+    mkdir -p weights data saved_models && \
+    gdown "https://drive.google.com/uc?id=1gUjjA6Kw2DtxDWup7WHCA0_D8lST2gvQ" -O weights/movieposter_net.pth && \
+    gdown "https://drive.google.com/uc?id=1JiMEjvw5KZS03od9waLrNtLvig_qJdj4"  -O data/movie_plots.csv && \
+    gdown "https://drive.google.com/uc?id=1qSL6Zk2ZlGK3wCiibM4IhpFAK4X-4_FU"   -O saved_models/embeddings_bow.npy && \
+    gdown "https://drive.google.com/uc?id=1M-QCYhKxjbbdQooeErWRwKVPzRDTu3Ki"  -O saved_models/embeddings_w2v.npy && \
+    gdown "https://drive.google.com/uc?id=1O_nScyz0gG0zfSrAsI1D3uq9IzGqaTWV"    -O saved_models/embeddings_bert.npy && \
+    gdown "https://drive.google.com/uc?id=14MWMnkKYnqEHnx2n91BUrd5IdUiuVf5R"    -O saved_models/vectorizer.pkl && \
+    gdown "https://drive.google.com/uc?id=1M-QCYhKxjbbdQooeErWRwKVPzRDTu3Ki"     -O saved_models/word2vec.model
 
 
 # Pré-télécharge les modèles au moment du build
-RUN python -c "from torchvision.models import resnet50, ResNet50_Weights; resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)"
-RUN python -c "from transformers import DistilBertTokenizerFast, DistilBertModel; DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased'); DistilBertModel.from_pretrained('distilbert-base-uncased')"
 
-EXPOSE 5075
 EXPOSE 5076
 
 CMD ["python", "movieposter_api.py", "--model_path", "weights/movieposter_net.pth"]

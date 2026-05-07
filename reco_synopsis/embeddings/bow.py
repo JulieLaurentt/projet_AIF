@@ -35,3 +35,8 @@ class BoWEmbedder:
         # Chargement de l'état du vectoriseur
         with open(f"{path}/vectorizer.pkl", 'rb') as f:
             self.vectorizer = pickle.load(f)
+    
+    def load_extra(self, path: str):
+        with open(path, 'rb') as f:
+            self.vectorizer = pickle.load(f)
+        print(f"Vectorizer BoW chargé depuis {path}")
