@@ -1,9 +1,10 @@
 version: '3.8'
+
 services:
   annoy:
     build:
       context: .
-      dockerfile: Dockerfile.annoy 
+      dockerfile: Dockerfile.annoy
     ports:
       - "5000:5000"
 
@@ -20,17 +21,27 @@ services:
   api_reco:
     build:
       context: .
-      dockerfile: Dockerfile.api        # même image, commande différente
+      dockerfile: Dockerfile.api
     ports:
       - "5076:5076"
     command: ["python", "movie_plot_api.py"]
     volumes:
-      - huggingface_cache:/root/.cache/huggingface  
+      - huggingface_cache:/root/.cache/huggingface
       - torch_cache:/root/.cache/torch
       - gensim_cache:/root/gensim-data
     depends_on:
-      - api                             # api_reco démarre après api (même build)
-  
+      - api
+
+  # ── Nouveau service CLIP (Partie 4) ──────────────────────────────────────
+  annoy_clip:
+    build:
+      context: .
+      dockerfile: Dockerfile.annoy_clip
+    ports:
+      - "5077:5077"
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+
   gradio:
     build:
       context: .
@@ -38,18 +49,17 @@ services:
     ports:
       - "7860:7860"
     environment:
-      -  API_CLASSIFICATION_URL=http://api:5075/predict    #  onglet 1
-      - API_RECOMMENDATION_URL=http://api_reco:5076/recommend  # onglet 2
-      - ANNOY_URL=http://annoy:5000/recommend             # onglet 1
+      - API_CLASSIFICATION_URL=http://api:5075/predict
+      - API_RECOMMENDATION_URL=http://api_reco:5076/recommend
+      - ANNOY_URL=http://annoy:5000/recommend
+      - ANNOY_CLIP_URL=http://annoy_clip:5077        # ← Partie 4
     depends_on:
       - api
       - api_reco
       - annoy
-
+      - annoy_clip
 
 volumes:
-  huggingface_cache:  
+  huggingface_cache:
   torch_cache:
   gensim_cache:
-
-

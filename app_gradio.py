@@ -7,6 +7,7 @@ import numpy as np
 import io
 import os
 import time
+import base64
 from PIL import Image
 
 # =========================================================
@@ -14,7 +15,8 @@ from PIL import Image
 # =========================================================
 API_CLASSIFICATION_URL = os.getenv("API_CLASSIFICATION_URL", "http://localhost:5075/predict")
 API_RECOMMENDATION_URL = os.getenv("API_RECOMMENDATION_URL", "http://localhost:5076/recommend")
-ANNOY_URL = os.getenv("ANNOY_URL", "http://annoy:5000/recommend")
+ANNOY_URL              = os.getenv("ANNOY_URL",              "http://annoy:5000/recommend")
+ANNOY_CLIP_URL         = os.getenv("ANNOY_CLIP_URL",         "http://annoy_clip:5077")
 
 # =========================================================
 # MODÈLES (feature extractor pour reco par image)
@@ -56,9 +58,34 @@ def normalize_vector(vector):
     norm = np.linalg.norm(vector)
     return (vector / norm).tolist() if norm > 0 else vector
 
-# =========================================================
-# ONGLET 1 — Prédiction de genre 
-# =========================================================
+def image_to_base64(image: Image.Image) -> str:
+    buf = io.BytesIO()
+    image.save(buf, format="JPEG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+def render_movie_cards(results, section_title):
+    """Génère du HTML pour une liste de films {title, plot, image_b64}"""
+    if not results:
+        return f"<p style='color:#888;'>Aucun résultat pour : {section_title}</p>"
+
+    html = f"<h3 style='color:#e67e22; margin:16px 0 8px;'>{section_title}</h3>"
+    html += "<div style='display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px;'>"
+    for i, r in enumerate(results):
+        title   = r.get("title", f"Film {i+1}")
+        img_b64 = r.get("image_b64", "")
+        if img_b64:
+            img_tag = f"<img src='data:image/jpeg;base64,{img_b64}' style='width:100%; height:240px; object-fit:cover; border-radius:4px; margin-bottom:8px;'>"
+        else:
+            img_tag = "<div style='width:100%; height:240px; background:#eee; border-radius:4px; margin-bottom:8px; display:flex; align-items:center; justify-content:center; color:#aaa;'>Pas d'affiche</div>"
+        html += f"""
+        <div style='border:1px solid #ddd; border-radius:8px; padding:10px;
+                    background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.08);'>
+            {img_tag}
+            <div style='font-weight:bold; color:#2c3e50; font-size:0.85em;'>{title}</div>
+        </div>"""
+    html += "</div>"
+    return html
+
 def predict_movie_genre(image):
     img_byte_arr = io.BytesIO()
     image.save(img_byte_arr, format='JPEG')
@@ -74,7 +101,7 @@ def predict_movie_genre(image):
     return f" Erreur API : Code {response.status_code}"
 
 # =========================================================
-# ONGLET 2 — Recommandation par image/Annoy 
+# ONGLET 2 — Recommandation par image/Annoy
 # =========================================================
 def get_recommendations(image):
     tensor = transform(image).unsqueeze(0)
@@ -91,7 +118,7 @@ def get_recommendations(image):
     return "\n".join([f"🎥 {film}" for film in films])
 
 # =========================================================
-# ONGLET 3 — Recommandation par synopsis (ne pas toucher, ca fonctionne)
+# ONGLET 3 — Recommandation par synopsis
 # =========================================================
 def recommend_movies(query, method, top_k):
     if not query.strip():
@@ -128,19 +155,13 @@ def recommend_movies(query, method, top_k):
             <div style='margin-top: 10px;'>
                 <div style='font-weight: bold; color: #333;'>{category}</div>
                 <div style='color: #007bff; font-size: 0.9em; margin: 5px 0;'>Score : {score:.4f}</div>
-                
-                <!-- Synopsis court -->
                 <p id='short_{i}' style='font-size: 0.8em; color: #666; line-height: 1.3; margin: 0;'>
                     {plot_short}
                 </p>
-                
-                <!-- Synopsis complet (caché par défaut) -->
                 <p id='full_{i}' style='font-size: 0.8em; color: #666; line-height: 1.3; margin: 0; display: none;'>
                     {plot}
                 </p>
-                
-                <!-- Bouton + / - -->
-                <button id='btn_{i}' 
+                <button id='btn_{i}'
                     onclick="
                         var s = document.getElementById('short_{i}');
                         var f = document.getElementById('full_{i}');
@@ -155,7 +176,7 @@ def recommend_movies(query, method, top_k):
                             b.textContent = '+';
                         }}
                     "
-                    style='margin-top: 6px; background: none; border: 1px solid #007bff; color: #007bff; 
+                    style='margin-top: 6px; background: none; border: 1px solid #007bff; color: #007bff;
                         border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 14px;
                         display: flex; align-items: center; justify-content: center; padding: 0;'>
                     +
@@ -167,7 +188,71 @@ def recommend_movies(query, method, top_k):
     return html_output
 
 # =========================================================
-# INTERFACE GRADIO — 3 onglets ( a modifier pour rajouter le 4eme onglet de la derniere partie)
+# ONGLET 4 — Natural Language Movie Discovery (CLIP)
+# =========================================================
+def clip_recommend(text_query, poster_image, top_k):
+    """
+    Retourne 3 sections HTML :
+      1. Texte → texte  (synopsis similaires)
+      2. Image → image  (posters similaires)
+      3. Texte → image  (posters correspondant au texte)
+    """
+    top_k = int(top_k)
+    sections_html = ""
+
+    # ── 1. Texte → texte ──────────────────────────────────────────────────
+    if text_query and text_query.strip():
+        resp = call_api_with_retry(
+            f"{ANNOY_CLIP_URL}/recommend/text_from_text",
+            json={"query": text_query.strip(), "top_k": top_k}
+        )
+        if resp is None:
+            sections_html += "<p>❌ API CLIP non disponible (text→text).</p>"
+        elif resp.status_code == 200:
+            results = resp.json().get("results", [])
+            sections_html += render_movie_cards(results, "📝 Recommandation texte → texte (synopsis similaires)")
+        else:
+            sections_html += f"<p>❌ Erreur text→text : {resp.status_code}</p>"
+    else:
+        sections_html += "<p style='color:#aaa;'>📝 <em>Entrez un synopsis pour la recommandation texte→texte.</em></p>"
+
+    # ── 2. Image → image ──────────────────────────────────────────────────
+    if poster_image is not None:
+        b64 = image_to_base64(poster_image)
+        resp = call_api_with_retry(
+            f"{ANNOY_CLIP_URL}/recommend/image_from_image",
+            json={"image_b64": b64, "top_k": top_k}
+        )
+        if resp is None:
+            sections_html += "<p>❌ API CLIP non disponible (image→image).</p>"
+        elif resp.status_code == 200:
+            results = resp.json().get("results", [])
+            sections_html += render_movie_cards(results, "🖼️ Recommandation image → image (posters similaires)")
+        else:
+            sections_html += f"<p>❌ Erreur image→image : {resp.status_code}</p>"
+    else:
+        sections_html += "<p style='color:#aaa;'>🖼️ <em>Uploadez un poster pour la recommandation image→image.</em></p>"
+
+    # ── 3. Texte → image ──────────────────────────────────────────────────
+    if text_query and text_query.strip():
+        resp = call_api_with_retry(
+            f"{ANNOY_CLIP_URL}/recommend/image_from_text",
+            json={"query": text_query.strip(), "top_k": top_k}
+        )
+        if resp is None:
+            sections_html += "<p>❌ API CLIP non disponible (text→image).</p>"
+        elif resp.status_code == 200:
+            results = resp.json().get("results", [])
+            sections_html += render_movie_cards(results, "🔍 Recommandation texte → image (posters correspondant au texte)")
+        else:
+            sections_html += f"<p>❌ Erreur text→image : {resp.status_code}</p>"
+    else:
+        sections_html += "<p style='color:#aaa;'>🔍 <em>Entrez un synopsis pour la recommandation texte→image.</em></p>"
+
+    return sections_html or "<p>Aucun résultat.</p>"
+
+# =========================================================
+# INTERFACE GRADIO — 4 onglets
 # =========================================================
 with gr.Blocks(title="AI Movie Analysis") as demo:
     gr.Markdown("#  Analyseur de Films")
@@ -215,6 +300,42 @@ with gr.Blocks(title="AI Movie Analysis") as demo:
                 reco_btn = gr.Button("Recommander", variant="primary")
             reco_output = gr.HTML()
             reco_btn.click(fn=recommend_movies, inputs=[query_input, method_input, topk_input], outputs=reco_output)
+
+        # --- Onglet 4 : CLIP Natural Language Movie Discovery ---
+        with gr.Tab("🎬 Découverte CLIP"):
+            gr.Markdown("""
+            ### Natural Language Movie Discovery (CLIP)
+            Utilisez le langage naturel ou un poster pour découvrir des films similaires.
+            CLIP encode texte et images dans le même espace vectoriel.
+            """)
+            with gr.Row():
+                with gr.Column(scale=1):
+                    clip_text = gr.Textbox(
+                        lines=4,
+                        placeholder="Ex: a young wizard discovers his powers and goes to a magical school...",
+                        label="📝 Description / Synopsis en anglais"
+                    )
+                    clip_image = gr.Image(
+                        type="pil",
+                        label="🖼️ Poster (optionnel, pour reco image→image)"
+                    )
+                    clip_topk = gr.Slider(minimum=1, maximum=10, value=5, step=1,
+                                          label="Nombre de recommandations par section")
+                    clip_btn = gr.Button("🔍 Découvrir", variant="primary")
+
+            gr.Markdown("""
+            **3 types de recommandations retournées :**
+            - 📝 **Texte → Texte** : films dont le synopsis est sémantiquement proche
+            - 🖼️ **Image → Image** : films dont le poster est visuellement similaire
+            - 🔍 **Texte → Image** : films dont le poster correspond à votre description
+            """)
+
+            clip_output = gr.HTML()
+            clip_btn.click(
+                fn=clip_recommend,
+                inputs=[clip_text, clip_image, clip_topk],
+                outputs=clip_output
+            )
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860, allowed_paths=["."])
