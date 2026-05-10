@@ -9,6 +9,7 @@ import os
 import time
 import base64
 from PIL import Image
+from torchvision import models 
 
 # =========================================================
 # CONFIG URLs
@@ -18,32 +19,11 @@ API_RECOMMENDATION_URL = os.getenv("API_RECOMMENDATION_URL", "http://localhost:5
 ANNOY_URL              = os.getenv("ANNOY_URL",              "http://annoy:5000/recommend")
 ANNOY_CLIP_URL         = os.getenv("ANNOY_CLIP_URL",         "http://annoy_clip:5077")
 
-# =========================================================
-# MODÈLES (feature extractor pour reco par image)
-# =========================================================
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225])
-])
-
-class FeatureExtractor(nn.Module):
-    def __init__(self):
-        super().__init__()
-        mobilenet = torch.hub.load('pytorch/vision', 'mobilenet_v2', pretrained=True)
-        self.features = nn.Sequential(*list(mobilenet.children())[:-1])
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-
-    def forward(self, x):
-        x = self.features(x)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        return x
 
 # =========================================================
 # UTILITAIRES
 # =========================================================
+
 def call_api_with_retry(url, **kwargs):
     for i in range(10):
         try:
@@ -86,6 +66,10 @@ def render_movie_cards(results, section_title):
     html += "</div>"
     return html
 
+# =========================================================
+# ONGLET 1 — Pred
+# =========================================================
+
 def predict_movie_genre(image):
     img_byte_arr = io.BytesIO()
     image.save(img_byte_arr, format='JPEG')
@@ -103,19 +87,79 @@ def predict_movie_genre(image):
 # =========================================================
 # ONGLET 2 — Recommandation par image/Annoy
 # =========================================================
-def get_recommendations(image):
-    tensor = transform(image).unsqueeze(0)
-    with torch.no_grad():
-        extractor = FeatureExtractor()
-        vector = extractor(tensor).squeeze().cpu().numpy().tolist()
 
-    vector = normalize_vector(vector)
-    response = call_api_with_retry(ANNOY_URL, json={"vector": vector})
+# =========================================================
+# FEATURE EXTRACTOR pour recup l'image correctement (MobileNetV2)
+# =========================================================
+device = "cpu"
+
+transform = transforms.Compose([
+    transforms.Resize((224,224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485,0.456,0.406],
+                         std=[0.229,0.224,0.225])
+])
+
+class FeatureExtractor(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # On utilise le même modèle que le TP sinon prob de dim
+        mobilenet = models.mobilenet_v3_small(pretrained=True)
+        # On garde exactement la même structure : features -> avgpool -> flatten
+        self.model = nn.Sequential(
+            mobilenet.features, 
+            mobilenet.avgpool, 
+            nn.Flatten()
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+extractor = FeatureExtractor().to(device)
+extractor.eval()
+
+def extract_vector(image):
+    tensor = transform(image).unsqueeze(0).to(device)
+    with torch.no_grad():
+        vec = extractor(tensor).squeeze().cpu().numpy()
+    return normalize_vector(vec)
+
+def get_recommendations(image):
+    if image is None:
+        return "<p>Veuillez uploader une image.</p>"
+
+    # extraction embedding 576
+    vector = extract_vector(image)
+
+    # appel API Annoy
+    response = call_api_with_retry(
+        ANNOY_URL,
+        json={"vector": vector}
+    )
 
     if response is None:
-        return " API Annoy non disponible."
-    films = response.json().get('recommendations', [])
-    return "\n".join([f"🎥 {film}" for film in films])
+        return "<p>API Annoy indisponible.</p>"
+    
+    if response.status_code != 200:
+        return f"<p>Erreur API : {response.status_code}</p>"
+
+
+    results = response.json().get("results", [])
+
+    films = []
+
+    for movie in results[:5]: 
+        try:
+            img_bytes = requests.get(movie["image_url"]).content
+            img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+            
+            films.append({
+                "image_b64": img_b64
+            })
+        except Exception as e:
+            print(f"Erreur image: {e}")
+
+    return render_movie_cards(films, "🎬 Films similaires")
 
 # =========================================================
 # ONGLET 3 — Recommandation par synopsis
@@ -190,6 +234,7 @@ def recommend_movies(query, method, top_k):
 # =========================================================
 # ONGLET 4 — Natural Language Movie Discovery (CLIP)
 # =========================================================
+
 def clip_recommend(text_query, poster_image, top_k):
     """
     Retourne 3 sections HTML :
@@ -254,6 +299,7 @@ def clip_recommend(text_query, poster_image, top_k):
 # =========================================================
 # INTERFACE GRADIO — 4 onglets
 # =========================================================
+
 with gr.Blocks(title="AI Movie Analysis") as demo:
     gr.Markdown("#  Analyseur de Films")
 
@@ -278,7 +324,7 @@ with gr.Blocks(title="AI Movie Analysis") as demo:
                     image_input_reco = gr.Image(type="pil", label="Poster")
                     annoy_btn = gr.Button("Trouver des films similaires", variant="primary")
                 with gr.Column():
-                    annoy_output = gr.Text(label="Films similaires")
+                    annoy_output = gr.HTML(label="Films similaires")
             annoy_btn.click(fn=get_recommendations, inputs=image_input_reco, outputs=annoy_output)
 
         # --- Onglet 3 ---
@@ -301,7 +347,7 @@ with gr.Blocks(title="AI Movie Analysis") as demo:
             reco_output = gr.HTML()
             reco_btn.click(fn=recommend_movies, inputs=[query_input, method_input, topk_input], outputs=reco_output)
 
-        # --- Onglet 4 : CLIP Natural Language Movie Discovery ---
+        # --- Onglet 4 :  ---
         with gr.Tab("🎬 Découverte CLIP"):
             gr.Markdown("""
             ### Natural Language Movie Discovery (CLIP)

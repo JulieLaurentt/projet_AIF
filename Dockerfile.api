@@ -33,7 +33,6 @@ RUN gdown "https://drive.google.com/uc?id=18_HQ194DUl34-uQHgxWtVr6z724ivACj" -O 
     rm posters.zip
 
 
-# Pré-télécharge les modèles au moment du build
 
 EXPOSE 5076
 

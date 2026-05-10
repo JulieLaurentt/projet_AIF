@@ -32,7 +32,6 @@ services:
     depends_on:
       - api
 
-  # ── Nouveau service CLIP (Partie 4) ──────────────────────────────────────
   annoy_clip:
     build:
       context: .
@@ -52,7 +51,7 @@ services:
       - API_CLASSIFICATION_URL=http://api:5075/predict
       - API_RECOMMENDATION_URL=http://api_reco:5076/recommend
       - ANNOY_URL=http://annoy:5000/recommend
-      - ANNOY_CLIP_URL=http://annoy_clip:5077        # ← Partie 4
+      - ANNOY_CLIP_URL=http://annoy_clip:5077        
     depends_on:
       - api
       - api_reco

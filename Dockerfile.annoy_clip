@@ -16,7 +16,7 @@ CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32'); \
 CLIPModel.from_pretrained('openai/clip-vit-base-patch32'); \
 print('CLIP téléchargé')"
 
-# Téléchargement du même dataset que les autres services
+# Téléchargement du même dataset 
 RUN pip install --no-cache-dir gdown && \
     mkdir -p data && \
     gdown "https://drive.google.com/uc?id=1JiMEjvw5KZS03od9waLrNtLvig_qJdj4" -O data/movie_plots.csv && \
@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir gdown && \
     unzip posters.zip && \
     rm posters.zip
 
-# Construction de l'index Annoy CLIP
+# Construction de l'index Annoy CLIP (comme d'hab, un peu comme ce que on a fait dans annoy)
+
 COPY build_clip_index.py .
 RUN python build_clip_index.py --size 1000 --output_dir weights/ \
     --csv_path data/movie_plots.csv \

@@ -9,7 +9,8 @@ sorted_movie_posters_paligema/
 test_posters
 posters/
 posters.zip
-
+MLP-20M/
+data/mapping_annoy.csv
 
 *.npy
 *.pkl

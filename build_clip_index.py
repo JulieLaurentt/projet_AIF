@@ -104,7 +104,7 @@ def main():
     with open(os.path.join(args.output_dir, "clip_metadata.json"), "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False)
 
-    print(f"✅ Index sauvegardés dans {args.output_dir}")
+    print(f"Index sauvegardés dans {args.output_dir}")
 
 if __name__ == "__main__":
     main()
