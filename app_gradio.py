@@ -252,14 +252,14 @@ def clip_recommend(text_query, poster_image, top_k):
             json={"query": text_query.strip(), "top_k": top_k}
         )
         if resp is None:
-            sections_html += "<p>❌ API CLIP non disponible (text→text).</p>"
+            sections_html += "<p> API CLIP non disponible (text→text).</p>"
         elif resp.status_code == 200:
             results = resp.json().get("results", [])
             sections_html += render_movie_cards(results, "📝 Recommandation texte → texte (synopsis similaires)")
         else:
-            sections_html += f"<p>❌ Erreur text→text : {resp.status_code}</p>"
+            sections_html += f"<p> Erreur text→text : {resp.status_code}</p>"
     else:
-        sections_html += "<p style='color:#aaa;'>📝 <em>Entrez un synopsis pour la recommandation texte→texte.</em></p>"
+        sections_html += "<p style='color:#aaa;'> <em>Entrez un synopsis pour la recommandation texte→texte.</em></p>"
 
     # ── 2. Image → image ──────────────────────────────────────────────────
     if poster_image is not None:
@@ -269,14 +269,14 @@ def clip_recommend(text_query, poster_image, top_k):
             json={"image_b64": b64, "top_k": top_k}
         )
         if resp is None:
-            sections_html += "<p>❌ API CLIP non disponible (image→image).</p>"
+            sections_html += "<p> API CLIP non disponible (image→image).</p>"
         elif resp.status_code == 200:
             results = resp.json().get("results", [])
-            sections_html += render_movie_cards(results, "🖼️ Recommandation image → image (posters similaires)")
+            sections_html += render_movie_cards(results, " Recommandation image → image (posters similaires)")
         else:
-            sections_html += f"<p>❌ Erreur image→image : {resp.status_code}</p>"
+            sections_html += f"<p> Erreur image→image : {resp.status_code}</p>"
     else:
-        sections_html += "<p style='color:#aaa;'>🖼️ <em>Uploadez un poster pour la recommandation image→image.</em></p>"
+        sections_html += "<p style='color:#aaa;'> <em>Uploadez un poster pour la recommandation image→image.</em></p>"
 
     # ── 3. Texte → image ──────────────────────────────────────────────────
     if text_query and text_query.strip():
@@ -285,14 +285,14 @@ def clip_recommend(text_query, poster_image, top_k):
             json={"query": text_query.strip(), "top_k": top_k}
         )
         if resp is None:
-            sections_html += "<p>❌ API CLIP non disponible (text→image).</p>"
+            sections_html += "<p> API CLIP non disponible (text→image).</p>"
         elif resp.status_code == 200:
             results = resp.json().get("results", [])
             sections_html += render_movie_cards(results, "🔍 Recommandation texte → image (posters correspondant au texte)")
         else:
-            sections_html += f"<p>❌ Erreur text→image : {resp.status_code}</p>"
+            sections_html += f"<p> Erreur text→image : {resp.status_code}</p>"
     else:
-        sections_html += "<p style='color:#aaa;'>🔍 <em>Entrez un synopsis pour la recommandation texte→image.</em></p>"
+        sections_html += "<p style='color:#aaa;'> <em>Entrez un synopsis pour la recommandation texte→image.</em></p>"
 
     return sections_html or "<p>Aucun résultat.</p>"
 
@@ -348,22 +348,20 @@ with gr.Blocks(title="AI Movie Analysis") as demo:
             reco_btn.click(fn=recommend_movies, inputs=[query_input, method_input, topk_input], outputs=reco_output)
 
         # --- Onglet 4 :  ---
-        with gr.Tab("🎬 Découverte CLIP"):
+        with gr.Tab("Découverte CLIP"):
             gr.Markdown("""
             ### Natural Language Movie Discovery (CLIP)
-            Utilisez le langage naturel ou un poster pour découvrir des films similaires.
-            CLIP encode texte et images dans le même espace vectoriel.
             """)
             with gr.Row():
                 with gr.Column(scale=1):
                     clip_text = gr.Textbox(
                         lines=4,
-                        placeholder="Ex: a young wizard discovers his powers and goes to a magical school...",
-                        label="📝 Description / Synopsis en anglais"
+                        placeholder="Ex: A hero fights to save the world...",
+                        label="Description / Synopsis en anglais"
                     )
                     clip_image = gr.Image(
                         type="pil",
-                        label="🖼️ Poster (optionnel, pour reco image→image)"
+                        label="Poster (optionnel, pour reco image→image)"
                     )
                     clip_topk = gr.Slider(minimum=1, maximum=10, value=5, step=1,
                                           label="Nombre de recommandations par section")
@@ -371,9 +369,9 @@ with gr.Blocks(title="AI Movie Analysis") as demo:
 
             gr.Markdown("""
             **3 types de recommandations retournées :**
-            - 📝 **Texte → Texte** : films dont le synopsis est sémantiquement proche
-            - 🖼️ **Image → Image** : films dont le poster est visuellement similaire
-            - 🔍 **Texte → Image** : films dont le poster correspond à votre description
+            - **Texte → Texte** : films dont le synopsis est sémantiquement proche
+            - **Image → Image** : films dont le poster est visuellement similaire
+            - **Texte → Image** : films dont le poster correspond à votre description
             """)
 
             clip_output = gr.HTML()
