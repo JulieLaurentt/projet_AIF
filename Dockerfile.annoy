@@ -1,0 +1,24 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-annoy.txt .
+RUN pip install --no-cache-dir -r requirements-annoy.txt
+RUN pip install --no-cache-dir gdown
+
+RUN mkdir -p data weights && \
+    gdown "https://drive.google.com/uc?id=10wekwh_cStZ2LUUV4Mb5EToEBMIGKu2R" -O data/mapping_annoy.csv && \
+    gdown "https://drive.google.com/uc?id=1RaCUO6hna-wcFY5Z1PBR9-0ecBGaQmGY" -O weights/rec_imdb.ann && \
+    gdown "https://drive.google.com/uc?id=1o6hGHzZ2Akw4aThBhwW7D-DGj7Lt47SN" -O MLP-20M.zip && \
+    unzip MLP-20M.zip && \
+    rm MLP-20M.zip
+
+COPY annoy_db.py .
+
+EXPOSE 5000
+CMD ["python", "annoy_db.py"]

@@ -1,0 +1,36 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-annoy-clip.txt .
+RUN pip install --no-cache-dir -r requirements-annoy-clip.txt
+
+# Téléchargement des poids CLIP (mis en cache dans l'image)
+RUN python -c "\
+from transformers import CLIPModel, CLIPProcessor; \
+CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32'); \
+CLIPModel.from_pretrained('openai/clip-vit-base-patch32'); \
+print('CLIP téléchargé')"
+
+# Téléchargement du même dataset 
+RUN pip install --no-cache-dir gdown && \
+    mkdir -p data && \
+    gdown "https://drive.google.com/uc?id=1JiMEjvw5KZS03od9waLrNtLvig_qJdj4" -O data/movie_plots.csv && \
+    gdown "https://drive.google.com/uc?id=18_HQ194DUl34-uQHgxWtVr6z724ivACj" -O posters.zip && \
+    unzip posters.zip && \
+    rm posters.zip
+
+# Construction de l'index Annoy CLIP (comme d'hab, un peu comme ce que on a fait dans annoy)
+
+COPY build_clip_index.py .
+RUN python build_clip_index.py --size 1000 --output_dir weights/ \
+    --csv_path data/movie_plots.csv \
+    --posters_dir sorted_movie_posters_paligema
+COPY annoy_clip.py .
+
+EXPOSE 5077
+CMD ["python", "annoy_clip.py"]

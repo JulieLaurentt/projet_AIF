@@ -1,3 +1,27 @@
+# Données
+data/*.csv
+data/*.npy
+
+data/
+saved_models/
+weights/
+sorted_movie_posters_paligema/
+test_posters
+posters/
+posters.zip
+MLP-20M/
+data/mapping_annoy.csv
+
+*.npy
+*.pkl
+
+# Python
 __pycache__/
-.ipynb_checkpoints/
 *.pyc
+
+# Environnement
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+

@@ -8,13 +8,13 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# On copie d'abord le fichier de dépendances
+
 COPY requirements-gradio.txt .
 
-# On installe tout d'un coup
+
 RUN pip install --no-cache-dir -r requirements-gradio.txt
 
-# On copie le reste du code
+
 COPY app_gradio.py .
 
 ENV GRADIO_ANALYTICS_ENABLED=False
